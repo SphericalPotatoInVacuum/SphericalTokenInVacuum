@@ -30,12 +30,12 @@ describe("Token contract", function () {
     // To deploy our contract, we just have to call Token.deploy() and await
     // its deployed() method, which happens once its transaction has been
     // mined.
-    const hardhatToken = await Token.deploy();
+    const spvToken = await Token.deploy();
 
-    await hardhatToken.deployed();
+    await spvToken.deployed();
 
     // Fixtures can return anything you consider useful for your tests
-    return { Token, hardhatToken, owner, addr1, addr2 };
+    return { Token, spvToken, owner, addr1, addr2 };
   }
 
   // You can nest describe calls to create subsections.
@@ -47,71 +47,97 @@ describe("Token contract", function () {
     it("Should set the right owner", async function () {
       // We use loadFixture to setup our environment, and then assert that
       // things went well
-      const { hardhatToken, owner } = await loadFixture(deployTokenFixture);
+      const { spvToken, owner } = await loadFixture(deployTokenFixture);
 
       // `expect` receives a value and wraps it in an assertion object. These
       // objects have a lot of utility methods to assert values.
 
       // This test expects the owner variable stored in the contract to be
       // equal to our Signer's owner.
-      expect(await hardhatToken.owner()).to.equal(owner.address);
+      expect(await spvToken.owner()).to.equal(owner.address);
     });
 
     it("Should assign the total supply of tokens to the owner", async function () {
-      const { hardhatToken, owner } = await loadFixture(deployTokenFixture);
-      const ownerBalance = await hardhatToken.balanceOf(owner.address);
-      expect(await hardhatToken.totalSupply()).to.equal(ownerBalance);
+      const { spvToken, owner } = await loadFixture(deployTokenFixture);
+      const ownerBalance = await spvToken.balanceOf(owner.address);
+      expect(await spvToken.totalSupply()).to.equal(ownerBalance);
+    });
+  });
+
+  describe("Sack", function () {
+    it("Should add potatoes", async function () {
+      const { spvToken, owner, addr1 } = await loadFixture(
+        deployTokenFixture
+      );
+      await expect(spvToken.addPotato("Mr. Potato", 200)).to.emit(spvToken, "PotatoAdded").withArgs(0, owner.address);
+      await expect(spvToken.connect(addr1).addPotato("Mrs. Potato", 150)).to.emit(spvToken, "PotatoAdded").withArgs(1, addr1.address);
+    });
+
+    it("Should allow owner to cook", async function () {
+      const { spvToken, owner, addr1 } = await loadFixture(
+        deployTokenFixture
+      );
+      await expect(spvToken.connect(addr1).addPotato("Mr. Potato", 200)).to.emit(spvToken, "PotatoAdded").withArgs(0, addr1.address);
+      await expect(spvToken.connect(addr1).cookPotato(0)).to.emit(spvToken, "PotatoCooked").withArgs(0, addr1.address);
+    });
+
+    it("Should not allow not owner to cook", async function () {
+      const { spvToken, owner, addr1, addr2 } = await loadFixture(
+        deployTokenFixture
+      );
+      await expect(spvToken.connect(addr1).addPotato("Mr. Potato", 200)).to.emit(spvToken, "PotatoAdded").withArgs(0, addr1.address);
+      await expect(spvToken.connect(addr2).cookPotato(0)).to.be.revertedWith("Can cook only your own potatoes!");
     });
   });
 
   describe("Transactions", function () {
     it("Should transfer tokens between accounts", async function () {
-      const { hardhatToken, owner, addr1, addr2 } = await loadFixture(
+      const { spvToken, owner, addr1, addr2 } = await loadFixture(
         deployTokenFixture
       );
       // Transfer 50 tokens from owner to addr1
       await expect(
-        hardhatToken.transfer(addr1.address, 50)
-      ).to.changeTokenBalances(hardhatToken, [owner, addr1], [-50, 50]);
+        spvToken.transfer(addr1.address, 50)
+      ).to.changeTokenBalances(spvToken, [owner, addr1], [-50, 50]);
 
       // Transfer 50 tokens from addr1 to addr2
       // We use .connect(signer) to send a transaction from another account
       await expect(
-        hardhatToken.connect(addr1).transfer(addr2.address, 50)
-      ).to.changeTokenBalances(hardhatToken, [addr1, addr2], [-50, 50]);
+        spvToken.connect(addr1).transfer(addr2.address, 50)
+      ).to.changeTokenBalances(spvToken, [addr1, addr2], [-50, 50]);
     });
 
     it("Should emit Transfer events", async function () {
-      const { hardhatToken, owner, addr1, addr2 } = await loadFixture(
+      const { spvToken, owner, addr1, addr2 } = await loadFixture(
         deployTokenFixture
       );
 
       // Transfer 50 tokens from owner to addr1
-      await expect(hardhatToken.transfer(addr1.address, 50))
-        .to.emit(hardhatToken, "Transfer")
+      await expect(spvToken.transfer(addr1.address, 50))
+        .to.emit(spvToken, "Transfer")
         .withArgs(owner.address, addr1.address, 50);
 
       // Transfer 50 tokens from addr1 to addr2
       // We use .connect(signer) to send a transaction from another account
-      await expect(hardhatToken.connect(addr1).transfer(addr2.address, 50))
-        .to.emit(hardhatToken, "Transfer")
+      await expect(spvToken.connect(addr1).transfer(addr2.address, 50))
+        .to.emit(spvToken, "Transfer")
         .withArgs(addr1.address, addr2.address, 50);
     });
 
     it("Should fail if sender doesn't have enough tokens", async function () {
-      const { hardhatToken, owner, addr1 } = await loadFixture(
+      const { spvToken, owner, addr1 } = await loadFixture(
         deployTokenFixture
       );
-      const initialOwnerBalance = await hardhatToken.balanceOf(owner.address);
+      const initialOwnerBalance = await spvToken.balanceOf(owner.address);
 
       // Try to send 1 token from addr1 (0 tokens) to owner.
       // `require` will evaluate false and revert the transaction.
       await expect(
-        hardhatToken.connect(addr1).transfer(owner.address, 1)
+        spvToken.connect(addr1).transfer(owner.address, 1)
       ).to.be.revertedWith("ERC20: transfer amount exceeds balance");
 
       // Owner balance shouldn't have changed.
-      expect(await hardhatToken.balanceOf(owner.address)).to.equal(
+      expect(await spvToken.balanceOf(owner.address)).to.equal(
         initialOwnerBalance
       );
     });
